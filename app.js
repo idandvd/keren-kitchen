@@ -13,6 +13,27 @@
     set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { } }
   };
 
+  /* ---------- family submissions (tips + photos) ---------- */
+  const API = window.BOOK_API || '';
+  let community = { tips: [], photos: [] };
+  if (API) {
+    try { community = JSON.parse(sessionStorage.getItem('community')) || community; } catch { }
+    fetch(API).then(r => r.json()).then(d => {
+      if (!d || !Array.isArray(d.tips)) return;
+      community = d;
+      try { sessionStorage.setItem('community', JSON.stringify(d)); } catch { }
+      route(true);
+    }).catch(() => { });
+  }
+  // Real photos win over an AI image; the AI image shows only when nothing real exists.
+  function photosFor(r) {
+    const real = [...(r.image && !r.ai ? [r.image] : []), ...(r.photos || []),
+      ...community.photos.filter(p => p.recipeId === r.id).map(p => p.src)];
+    if (real.length) return { pics: real, ai: false };
+    return r.image ? { pics: [r.image], ai: true } : { pics: [], ai: false };
+  }
+  const tipsFor = id => community.tips.filter(t => t.recipeId === id);
+
   /* ---------- line icons ---------- */
   const svg = (d, cls = 'ico') => `<svg class="${cls}" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
   const ICON = {
@@ -25,8 +46,11 @@
     print: '<path d="M14 18V7h20v11"/><rect x="7" y="18" width="34" height="14" rx="3"/><path d="M14 28h20v13H14z"/>',
     share: '<circle cx="35" cy="12" r="5"/><circle cx="13" cy="24" r="5"/><circle cx="35" cy="36" r="5"/><path d="M17.5 21.5l13-7M17.5 26.5l13 7"/>',
     play: '<circle cx="24" cy="24" r="18"/><path d="M20 16l12 8-12 8z"/>',
-    arrow: '<path d="M30 12 18 24l12 12"/>'
+    arrow: '<path d="M30 12 18 24l12 12"/>',
+    camera: '<path d="M6 16a3 3 0 0 1 3-3h6l3-4h12l3 4h6a3 3 0 0 1 3 3v19a3 3 0 0 1-3 3H9a3 3 0 0 1-3-3z"/><circle cx="24" cy="25" r="7"/>',
+    pen: '<path d="M30 8l10 10-22 22H8V30z"/><path d="M26 12l10 10"/>'
   };
+  const tipHtml = t => `<figure class="tip community"><blockquote>${esc(t.text)}</blockquote><figcaption>— ${esc(t.name || 'מהמשפחה')}</figcaption></figure>`;
   const CAT_BLURB = {
     salads: 'צבעוניים, טריים ומהירים – בדיוק לשולחן של שישי',
     mains: 'הסירים שמילאו את הבית בריחות של שבת',
@@ -38,7 +62,8 @@
 
   /* ---------- home ---------- */
   function home() {
-    const withPhotos = B.recipes.filter(r => r.image).length;
+    const withPhotos = B.recipes.filter(r => !photosFor(r).ai && photosFor(r).pics.length).length;
+    const generalTips = community.tips.filter(t => !t.recipeId);
     main.innerHTML = `
       <section class="hero">
         <div class="hero-text">
@@ -90,6 +115,8 @@
           <h2>הטיפים הקטנים של קרן</h2>
           <p class="muted">${esc(B.tipsIntro)}</p>
           ${B.tips.map(t => `<p class="tip">${esc(t)}</p>`).join('')}
+          ${generalTips.map(tipHtml).join('')}
+          ${API ? `<button class="btn primary add-tip" data-open="tip">${svg(ICON.pen)}לכתוב טיפ של קרן</button>` : ''}
         </div>
         <div class="panel listen">
           <img class="avatar" src="${B.portrait}" alt="קרן מחייכת">
@@ -110,6 +137,7 @@
     const search = main.querySelector('.search');
     search.addEventListener('input', () => { state.q = search.value; renderList(); });
     main.querySelector('#toRecipes').onclick = () => scrollToList();
+    main.querySelectorAll('[data-open]').forEach(b => b.onclick = () => openForm(b.dataset.open));
     main.querySelector('.cats').onclick = e => {
       const b = e.target.closest('.cat-tile'); if (!b) return;
       state.cat = b.dataset.cat; renderChips(); renderList(); scrollToList();
@@ -141,8 +169,9 @@
   function card(r) {
     const steps = r.steps.reduce((n, g) => n + g.items.length, 0);
     const ings = r.ingredients.reduce((n, g) => n + g.items.length, 0);
-    const thumb = r.image
-      ? `<div class="thumb"><img src="${r.image}" alt="" loading="lazy"></div>`
+    const ph = photosFor(r);
+    const thumb = ph.pics.length
+      ? `<div class="thumb"><img src="${ph.pics[0]}" alt="" loading="lazy">${ph.ai ? '<span class="ai-tag" title="תמונה שנוצרה בבינה מלאכותית">AI</span>' : ''}</div>`
       : `<div class="thumb art" aria-hidden="true">${svg(ICON[r.category])}</div>`;
     return `<a class="card" href="#/recipe/${r.id}" style="--c:var(--${r.category});--cs:var(--${r.category}-soft)">${thumb}
       <div class="body"><h3>${esc(r.title)}</h3>
@@ -187,7 +216,8 @@
       return `<li data-s="${key}" class="${done[key] ? 'done' : ''}">${stepHtml(it)}</li>`;
     }).join('')}</ol>`).join('');
     const totalIng = k;
-    const pics = r.image ? [r.image, ...(r.photos || [])] : [];
+    const { pics, ai } = photosFor(r);
+    const rTips = tipsFor(id);
 
     main.innerHTML = `
       <article class="recipe" style="--c:var(--${r.category});--cs:var(--${r.category}-soft)">
@@ -204,11 +234,17 @@
             ${navigator.share ? `<button class="btn small" id="share">${svg(ICON.share)}שיתוף</button>` : ''}
           </div>
         </div>
-        ${pics.length ? `<div class="recipe-photos">
-            <button class="recipe-photo" data-i="0" aria-label="הגדלת התמונה"><img src="${pics[0]}" alt="${esc(r.title)}"></button>
-            ${pics.length > 1 ? `<div class="more-photos">${pics.slice(1).map((p, i) => `<button data-i="${i + 1}" aria-label="תמונה נוספת"><img src="${p}" alt=""></button>`).join('')}</div>` : ''}
-          </div>`
+        <div class="recipe-photos">
+          ${pics.length ? `<div class="photo-frame">
+              <button class="recipe-photo" data-i="0" aria-label="הגדלת התמונה"><img src="${pics[0]}" alt="${esc(r.title)}"></button>
+              ${ai ? '<span class="ai-badge">✦ תמונה שנוצרה ב-AI, להמחשה בלבד</span>' : ''}
+            </div>
+            ${pics.length > 1 ? `<div class="more-photos">${pics.slice(1).map((p, i) => `<button data-i="${i + 1}" aria-label="תמונה נוספת"><img src="${p}" alt=""></button>`).join('')}</div>` : ''}`
           : `<div class="recipe-art" aria-hidden="true">${svg(ICON[r.category])}</div>`}
+          ${API ? `<div class="photo-cta ${ai || !pics.length ? 'strong' : ''}">
+            ${svg(ICON.camera)}<span>${ai || !pics.length ? 'הכנתם את המנה? נשמח לתמונה אמיתית במקום' : 'יש לכם עוד תמונה של המנה?'}</span>
+            <button class="btn small" data-open="photo">שליחת תמונה</button></div>` : ''}
+        </div>
       </header>
       <div class="recipe-body">
         <section class="box ing-box">
@@ -223,6 +259,11 @@
           ${r.signoff ? `<p class="signoff">${esc(r.signoff)}</p>` : ''}
         </section>
       </div>
+      ${rTips.length || API ? `<section class="recipe-tips">
+        <h2>טיפים מהמשפחה</h2>
+        ${rTips.map(tipHtml).join('') || '<p class="muted">עוד אין טיפים למתכון הזה.</p>'}
+        ${API ? `<button class="btn small" data-open="tip">${svg(ICON.pen)}להוסיף טיפ למתכון</button>` : ''}
+      </section>` : ''}
       <nav class="pager">
         ${prev ? `<a class="prev" href="#/recipe/${prev.id}"><small>→ המתכון הקודם</small>${esc(prev.title)}</a>` : '<span></span>'}
         ${next ? `<a class="next" href="#/recipe/${next.id}"><small>המתכון הבא ←</small>${esc(next.title)}</a>` : ''}
@@ -248,7 +289,8 @@
     const sh = main.querySelector('#share');
     if (sh) sh.onclick = () => navigator.share({ title: r.title + ' – המטבח של קרן', url: location.href }).catch(() => { });
     const photos = main.querySelector('.recipe-photos');
-    if (photos) photos.onclick = e => { const b = e.target.closest('button'); if (b) openLightbox(pics, +b.dataset.i); };
+    if (photos) photos.onclick = e => { const b = e.target.closest('button[data-i]'); if (b) openLightbox(pics, +b.dataset.i); };
+    main.querySelectorAll('[data-open]').forEach(b => b.onclick = () => openForm(b.dataset.open, r));
     const wake = main.querySelector('#wake');
     if (wake) {
       syncWake();
@@ -305,6 +347,79 @@
     main.innerHTML = `<div class="page"><h1>לא מצאנו את הדף</h1><p class="center"><a class="btn" href="#/">חזרה לדף הבית</a></p></div>`;
   }
 
+  /* ---------- tip / photo form ---------- */
+  const sheetEl = document.getElementById('sheet'), sheetBody = sheetEl.querySelector('.sheet-body');
+  function openForm(type, r) {
+    const isPhoto = type === 'photo';
+    const recipeOptions = B.recipes.map(x => `<option value="${x.id}" ${r && r.id === x.id ? 'selected' : ''}>${esc(x.title)}</option>`).join('');
+    sheetBody.innerHTML = `
+      <h2>${isPhoto ? 'שליחת תמונה' : 'טיפ של קרן'}</h2>
+      <p class="muted">${isPhoto
+        ? 'הכנתם את המנה, או שיש לכם תמונה ישנה שלה? שלחו לנו. אחרי אישור היא תופיע באתר.'
+        : 'שמתם לב שמה שאתן עושות זו בעצם שיטה או טיפ שקרן לימדה? זה המקום לכתוב את זה. הטיפ יופיע באתר אחרי אישור.'}</p>
+      <form class="send-form" novalidate>
+        ${isPhoto ? `
+          <label class="file-drop"><input type="file" name="file" accept="image/*" required>
+            <span class="file-preview">${svg(ICON.camera)}<span>לבחור תמונה</span></span></label>
+          <label>מתכון<select name="recipe">${recipeOptions}</select></label>
+          <label>הערה (לא חובה)<input name="text" maxlength="300" placeholder="למשל: הכנתי לשבת, יצא מושלם"></label>`
+        : `
+          <label>הטיפ<textarea name="text" rows="4" maxlength="1000" required placeholder="למשל: את הסלט ביצים ותפו&quot;א הייתה מתבלת בתוך הסיר שבו התבשלו"></textarea></label>
+          <label>על איזה מתכון? (לא חובה)<select name="recipe"><option value="">טיפ כללי</option>${recipeOptions}</select></label>`}
+        <label>השם שלכם (לא חובה)<input name="name" maxlength="60" autocomplete="name"></label>
+        <input class="hp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+        <p class="form-msg" role="status"></p>
+        <button class="btn primary" type="submit">שליחה</button>
+      </form>`;
+    const form = sheetBody.querySelector('form'), msg = form.querySelector('.form-msg');
+    let dataUrl = '';
+    const file = form.querySelector('input[type=file]');
+    if (file) file.onchange = async () => {
+      msg.textContent = '';
+      if (!file.files[0]) return;
+      try {
+        dataUrl = await shrink(file.files[0]);
+        form.querySelector('.file-preview').innerHTML = `<img src="${dataUrl}" alt="">`;
+      } catch { dataUrl = ''; msg.textContent = 'לא הצלחנו לקרוא את התמונה. נסו תמונה אחרת.'; }
+    };
+    form.onsubmit = async e => {
+      e.preventDefault();
+      const f = new FormData(form), rid = f.get('recipe') || '';
+      if (isPhoto && !dataUrl) { msg.textContent = 'צריך לבחור תמונה.'; return; }
+      if (!isPhoto && String(f.get('text')).trim().length < 3) { msg.textContent = 'צריך לכתוב את הטיפ.'; return; }
+      const btn = form.querySelector('[type=submit]');
+      btn.disabled = true; btn.textContent = 'שולח…'; msg.textContent = '';
+      try {
+        const res = await fetch(API, {
+          method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ type, name: f.get('name'), text: f.get('text'), recipeId: rid,
+            recipeTitle: rid ? byId[rid].title : '', image: isPhoto ? dataUrl : undefined, website: f.get('website') })
+        }).then(r => r.json());
+        if (!res.ok) throw new Error(res.error);
+        sheetBody.innerHTML = `<div class="sent"><span class="heart">♥</span><h2>תודה!</h2>
+          <p>${isPhoto ? 'התמונה נשלחה ותופיע' : 'הטיפ נשלח ויופיע'} באתר אחרי אישור.</p>
+          <button class="btn" onclick="this.closest('dialog').close()">סגירה</button></div>`;
+      } catch {
+        btn.disabled = false; btn.textContent = 'שליחה';
+        msg.textContent = 'השליחה לא הצליחה. נסו שוב בעוד רגע.';
+      }
+    };
+    sheetEl.showModal();
+  }
+  // Resize big phone photos before upload (max 1600px, JPEG).
+  async function shrink(file) {
+    const url = URL.createObjectURL(file);
+    try {
+      const img = await new Promise((ok, bad) => { const i = new Image(); i.onload = () => ok(i); i.onerror = bad; i.src = url; });
+      const k = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight));
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      return c.toDataURL('image/jpeg', 0.85);
+    } finally { URL.revokeObjectURL(url); }
+  }
+  sheetEl.addEventListener('click', e => { if (e.target === sheetEl) sheetEl.close(); });
+
   /* ---------- lightbox ---------- */
   const lb = document.getElementById('lightbox'), lbImg = lb.querySelector('img');
   let lbList = [], lbI = 0;
@@ -327,8 +442,16 @@
 
   /* ---------- router ---------- */
   let homeScroll = 0, onHome = false;
-  function route() {
+  function route(refresh) {
     const [, page, arg] = location.hash.replace(/^#\/?/, '/').split('/');
+    if (refresh === true) {
+      // new family submissions arrived: redraw in place, keep scroll and any open form
+      if (sheetEl.open || (page && page !== 'recipe')) return;
+      const y = window.scrollY;
+      page ? recipe(arg) : home();
+      window.scrollTo(0, y);
+      return;
+    }
     if (onHome) homeScroll = window.scrollY;
     onHome = !page;
     document.title = 'המטבח של קרן';
@@ -343,6 +466,6 @@
     main.classList.remove('enter'); void main.offsetWidth; main.classList.add('enter');
     window.scrollTo(0, onHome ? homeScroll : 0);
   }
-  window.addEventListener('hashchange', route);
+  window.addEventListener('hashchange', () => route());
   route();
 })();

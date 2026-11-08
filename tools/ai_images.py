@@ -1,0 +1,98 @@
+"""Generate AI illustration photos for recipes that have no real photo.
+
+Usage (from the project folder):
+    python tools/ai_images.py            # every recipe without a photo
+    python tools/ai_images.py r01 r16    # only these recipes (re-generate)
+
+Needs GEMINI_API_KEY in .env (never committed). Images are saved as
+images/<id>-ai.jpg and marked "ai": true in data.js, so the site labels them.
+"""
+import base64, io, json, os, sys, time, urllib.error, urllib.request
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+MODEL = os.environ.get('GEMINI_IMAGE_MODEL', 'gemini-3-pro-image')
+
+STYLE = ("A realistic, unstyled home photo taken with a smartphone in an Israeli family kitchen. "
+         "Natural daylight from a window, shot from slightly above. The food is served in an everyday dish "
+         "on a kitchen counter or a Shabbat table with a white tablecloth. Generous homemade portion, authentic and "
+         "a little imperfect, like a photo a family member would send on WhatsApp. "
+         "No people, no hands, no text, no labels, no watermark. Landscape 4:3.")
+
+DISH = {
+    'r01': "Israeli white cabbage salad: very thinly shredded white cabbage dressed with soy sauce, date syrup (silan), oil and lemon, topped with toasted sesame seeds, sunflower seeds and slivered almonds, in a large glass bowl.",
+    'r02': "Fresh coleslaw-style salad of thinly shredded white cabbage, grated carrot, finely chopped celery, cilantro and parsley, dressed with oil and lemon, in a glass bowl.",
+    'r03': "Simple salad of small diced cucumbers mixed with canned sweet corn kernels in mayonnaise, in a glass serving bowl.",
+    'r07': "Purple cabbage salad: finely shredded red cabbage in a light creamy mayonnaise and lemon dressing, bright purple-pink, in a glass bowl.",
+    'r08': "Waldorf salad: diced green Granny Smith apple and pineapple cubes with thinly sliced celery in a light mayonnaise dressing, topped with walnut pieces, in a glass bowl.",
+    'r12': "Pieces of chicken (thighs and drumsticks) with red kidney beans stewed in a thick red tomato paste and paprika sauce, in a wide cooking pot on the stove.",
+    'r14': "Grilled boneless chicken thighs (pargiyot) cut into strips, tossed with golden fried onions and turmeric-paprika seasoning, in a large frying pan.",
+    'r15': "Beef and walnut meatballs simmered in a glossy dark sauce of caramelized red onions, soy sauce and date syrup, in a wide pot.",
+    'r16': "Moroccan-style stuffed peppers: light green peppers, fried and peeled, stuffed with rice and ground beef, tops removed, arranged upright in a baking dish in a reddish paprika-turmeric sauce, after baking.",
+    'r19': "Golden fried vegetable patties (latkes-style) made of grated potato, parsley and green onion, piled on a plate lined with paper towel.",
+    'r20': "Israeli red peas: green peas cooked in a red tomato-paprika sauce, in a small pot, served as a side dish.",
+    'r22': "Traditional Shabbat chamin (cholent) in a big pot: beef, whole head of garlic, large white beans, chickpeas, potatoes browned from slow cooking overnight and brown slow-cooked eggs, with a side bag of cooked wheat berries.",
+    'r30': "Passover cheesecake in a rectangular pan: cookie crumb base, baked creamy cheese layer, and a smooth white whipped cream and vanilla pudding topping; one square slice cut out.",
+    'r31': "Dense non-dairy chocolate cake with chopped walnuts, a glossy chocolate glaze and a layer of whipped topping, in a medium baking pan, cut into squares.",
+    'r33': "Semolina coconut cake (basbousa-style) in a rectangular aluminum baking pan, golden, soaked in sugar syrup and sprinkled with shredded coconut, cut into squares.",
+    'r34': "Cheesecake for breaking the Yom Kippur fast in a rectangular glass dish: crushed biscuit base, baked cheese layer and a thick white whipped cream topping; a few pieces cut.",
+    'r35': "Fudgy chocolate walnut brownies dusted with powdered sugar, cut into squares in a baking pan, with crackly tops.",
+}
+
+
+def api_key():
+    for line in open(os.path.join(ROOT, '.env'), encoding='utf-8'):
+        if line.startswith('GEMINI_API_KEY='):
+            return line.split('=', 1)[1].strip().strip('"\'')
+    sys.exit('GEMINI_API_KEY missing in .env')
+
+
+def generate(prompt, key):
+    body = {'contents': [{'parts': [{'text': prompt}]}],
+            'generationConfig': {'responseModalities': ['IMAGE'], 'imageConfig': {'aspectRatio': '4:3'}}}
+    req = urllib.request.Request(
+        f'https://generativelanguage.googleapis.com/v1beta/models/{MODEL}:generateContent',
+        data=json.dumps(body).encode(), headers={'x-goog-api-key': key, 'Content-Type': 'application/json'})
+    for attempt in range(3):
+        try:
+            d = json.load(urllib.request.urlopen(req, timeout=180))
+            for part in d['candidates'][0]['content']['parts']:
+                data = part.get('inlineData') or part.get('inline_data')
+                if data:
+                    return base64.b64decode(data['data'])
+            raise RuntimeError('no image in response')
+        except urllib.error.HTTPError as e:
+            msg = e.read()[:300].decode(errors='replace')
+            if e.code in (429, 500, 503) and attempt < 2:
+                time.sleep(20 * (attempt + 1)); continue
+            raise RuntimeError(f'HTTP {e.code}: {msg}')
+
+
+def main():
+    from PIL import Image
+    key = api_key()
+    path = os.path.join(ROOT, 'data.js')
+    src = open(path, encoding='utf-8').read()
+    book = json.loads(src[src.index('{'):src.rindex('}') + 1])
+    wanted = sys.argv[1:] or [r['id'] for r in book['recipes'] if not r.get('image') or r.get('ai')]
+    for r in book['recipes']:
+        if r['id'] not in wanted or r['id'] not in DISH:
+            continue
+        if r.get('image') and not r.get('ai'):
+            print(r['id'], 'has a real photo, skipped'); continue
+        print(r['id'], 'generating…', flush=True)
+        try:
+            raw = generate(DISH[r['id']] + ' ' + STYLE, key)
+        except Exception as e:
+            print('  failed:', e); continue
+        im = Image.open(io.BytesIO(raw)).convert('RGB')
+        im.thumbnail((1400, 1400))
+        out = f'images/{r["id"]}-ai.jpg'
+        im.save(os.path.join(ROOT, out), quality=82, optimize=True, progressive=True)
+        r['image'], r['ai'] = out, True
+        open(path, 'w', encoding='utf-8').write(
+            '// Generated from the book document. Edit freely.\nwindow.BOOK = ' + json.dumps(book, ensure_ascii=False, indent=1) + ';\n')
+        print('  saved', out)
+
+
+if __name__ == '__main__':
+    main()

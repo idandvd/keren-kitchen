@@ -369,6 +369,68 @@ button { font: inherit; color: inherit; }
 .closing p { margin: 0 0 12px; }
 .closing .heart { font-size: 1.4rem; }
 
+/* ---------- AI label + family submissions ---------- */
+.card .thumb { position: relative; }
+.ai-tag {
+  position: absolute; top: 8px; inset-inline-end: 8px; font: 700 .7rem/1 var(--sans); letter-spacing: .06em;
+  background: rgba(30, 20, 18, .62); color: #fff; padding: 4px 7px; border-radius: 6px; backdrop-filter: blur(4px);
+}
+.photo-frame { position: relative; }
+.ai-badge {
+  position: absolute; bottom: 10px; inset-inline-start: 10px; font-size: .8rem; font-weight: 600;
+  background: rgba(30, 20, 18, .66); color: #fff; padding: 4px 12px; border-radius: 999px; backdrop-filter: blur(4px); pointer-events: none;
+}
+.photo-cta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: .92rem; color: var(--muted); padding: 2px 4px; }
+.photo-cta .ico { width: 1.4em; height: 1.4em; color: var(--c); }
+.photo-cta span { flex: 1; min-width: 160px; }
+.photo-cta.strong { background: var(--cs); color: var(--ink); border-radius: 14px; padding: 10px 14px; }
+
+.recipe-tips { margin-top: 28px; background: var(--paper); border-radius: var(--radius); box-shadow: var(--shadow); padding: 22px 26px; }
+.recipe-tips h2 { font-size: 1.45rem; margin-bottom: 6px; }
+.recipe-tips .muted { color: var(--muted); margin: 4px 0 12px; }
+.recipe-tips .btn { margin-top: 12px; }
+.tip.community { margin: 14px 0 0; padding: 12px 18px; background: var(--gold-soft); border-radius: 4px 14px 14px 14px; }
+.tip.community::before { display: none; }
+.tip.community blockquote { margin: 0; font-family: var(--hand); font-size: 1.55rem; line-height: 1.35; color: var(--ink); }
+.tip.community figcaption { font-size: .85rem; color: var(--muted); margin-top: 2px; }
+.add-tip { margin-top: 18px; }
+
+.sheet {
+  width: min(520px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); border: 0; border-radius: 22px; padding: 0;
+  background: var(--paper); color: var(--ink); box-shadow: var(--shadow-lg); overflow-x: hidden;
+}
+.sheet::backdrop { background: rgba(30, 18, 14, .55); backdrop-filter: blur(3px); }
+.sheet[open] { animation: enter .25s ease; }
+.sheet-close { position: absolute; top: 12px; inset-inline-end: 12px; margin: 0; }
+.sheet-close button { width: 36px; height: 36px; border-radius: 50%; border: 0; background: var(--bg); cursor: pointer; color: var(--muted); }
+.sheet-body { padding: 26px 26px 24px; }
+.sheet-body h2 { font-size: 1.7rem; padding-inline-end: 40px; }
+.sheet-body > .muted { color: var(--muted); font-size: .95rem; margin: 6px 0 16px; }
+.send-form { display: flex; flex-direction: column; gap: 14px; }
+.send-form label { display: flex; flex-direction: column; gap: 4px; font-size: .9rem; font-weight: 600; color: var(--muted); }
+.send-form input, .send-form textarea, .send-form select {
+  font: inherit; font-size: 1rem; font-weight: 400; color: var(--ink); background: var(--bg);
+  border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; outline: none; width: 100%;
+}
+.send-form textarea { resize: vertical; font-family: var(--sans); }
+.send-form :is(input, textarea, select):focus { border-color: var(--gold); box-shadow: 0 0 0 3px var(--gold-soft); }
+.send-form .hp { position: absolute; width: 1px; height: 1px; padding: 0; border: 0; opacity: 0; clip-path: inset(50%); pointer-events: none; }
+.file-drop input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.file-preview {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-height: 150px; cursor: pointer;
+  border: 2px dashed var(--line); border-radius: 16px; color: var(--muted); font-weight: 600; overflow: hidden; transition: border-color .15s;
+}
+.file-preview:hover, .file-drop input:focus-visible + .file-preview { border-color: var(--gold); }
+.file-preview .ico { width: 40px; height: 40px; color: var(--gold); }
+.file-preview img { width: 100%; max-height: 260px; object-fit: contain; }
+.form-msg { margin: 0; color: var(--wine); font-weight: 600; min-height: 1em; }
+.form-msg:empty { display: none; }
+.send-form .btn { align-self: flex-start; }
+.send-form .btn:disabled { opacity: .6; cursor: wait; }
+.sent { text-align: center; padding: 16px 0 6px; }
+.sent .heart { font-size: 2.4rem; }
+.sent p { margin: 6px 0 18px; }
+
 /* ---------- lightbox ---------- */
 .lightbox { position: fixed; inset: 0; z-index: 100; background: rgba(20, 12, 10, .92); display: grid; place-items: center; padding: 24px; animation: enter .2s ease; }
 .lightbox[hidden] { display: none; }
