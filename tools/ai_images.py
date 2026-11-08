@@ -1,11 +1,12 @@
-"""Generate AI illustration photos for recipes that have no real photo.
+"""AI illustration photos for recipes that have no real photo.
 
 Usage (from the project folder):
-    python tools/ai_images.py            # every recipe without a photo
-    python tools/ai_images.py r01 r16    # only these recipes (re-generate)
+    python tools/ai_images.py                 # generate all missing (needs GEMINI_API_KEY with billing)
+    python tools/ai_images.py r01 r16         # generate only these
+    python tools/ai_images.py --prompts       # write tools/ai-prompts.html (copy prompts into Gemini/ChatGPT)
+    python tools/ai_images.py --import DIR    # add images you made yourself; name files r01.png, r16.jpg ...
 
-Needs GEMINI_API_KEY in .env (never committed). Images are saved as
-images/<id>-ai.jpg and marked "ai": true in data.js, so the site labels them.
+Images are saved as images/<id>-ai.jpg and marked "ai": true in data.js, so the site labels them.
 """
 import base64, io, json, os, sys, time, urllib.error, urllib.request
 
@@ -67,12 +68,72 @@ def generate(prompt, key):
             raise RuntimeError(f'HTTP {e.code}: {msg}')
 
 
+DATA = os.path.join(ROOT, 'data.js')
+
+
+def load_book():
+    src = open(DATA, encoding='utf-8').read()
+    return json.loads(src[src.index('{'):src.rindex('}') + 1])
+
+
+def save_book(book):
+    open(DATA, 'w', encoding='utf-8').write(
+        '// Generated from the book document. Edit freely.\nwindow.BOOK = ' + json.dumps(book, ensure_ascii=False, indent=1) + ';\n')
+
+
+def save_ai(book, r, im):
+    im = im.convert('RGB')
+    im.thumbnail((1400, 1400))
+    out = f'images/{r["id"]}-ai.jpg'
+    im.save(os.path.join(ROOT, out), quality=82, optimize=True, progressive=True)
+    r['image'], r['ai'] = out, True
+    save_book(book)
+    print(r['id'], 'saved', out)
+
+
+def write_prompts():
+    book = load_book()
+    esc = lambda s: s.replace('&', '&amp;').replace('<', '&lt;')
+    rows = ''.join(
+        f'<section><h2>{esc(r["title"])}</h2><p>לשמור בשם: <b>{r["id"]}.png</b></p>'
+        f'<textarea readonly>{esc(DISH[r["id"]] + " " + STYLE)}</textarea><button>העתקה</button></section>'
+        for r in book['recipes'] if r['id'] in DISH and not (r.get('image') and not r.get('ai')))
+    html = f'''<!doctype html><html lang="he" dir="rtl"><meta charset="utf-8"><title>פרומפטים לתמונות AI</title>
+<style>body{{font:16px/1.5 Arial;max-width:820px;margin:24px auto;padding:0 16px;background:#f8f2e8;color:#3b2a24}}
+section{{background:#fff;border-radius:12px;padding:14px 18px;margin:12px 0}}h2{{margin:0;color:#7a2335}}
+textarea{{width:100%;height:96px;direction:ltr;font:13px/1.4 monospace}}button{{padding:6px 16px;border-radius:99px;border:0;background:#7a2335;color:#fff;cursor:pointer}}</style>
+<h1>תמונות AI למתכונים</h1>
+<ol><li>לפתוח את gemini.google.com (או ChatGPT) ולהדביק את הפרומפט.</li>
+<li>לשמור את התמונה בשם שמופיע (למשל r16.png) בתיקייה אחת.</li>
+<li>להריץ: <code>python tools/ai_images.py --import התיקייה</code> (או לבקש מ-Claude).</li></ol>
+{rows}
+<script>document.querySelectorAll('button').forEach(b=>b.onclick=()=>{{navigator.clipboard.writeText(b.previousElementSibling.value);b.textContent='הועתק ✓'}})</script>'''
+    out = os.path.join(ROOT, 'tools', 'ai-prompts.html')
+    open(out, 'w', encoding='utf-8').write(html)
+    print('wrote', out)
+
+
+def import_dir(folder):
+    from PIL import Image
+    book = load_book()
+    by_id = {r['id']: r for r in book['recipes']}
+    for f in sorted(os.listdir(folder)):
+        rid = os.path.splitext(f)[0].lower().split('-')[0].split(' ')[0]
+        if rid in by_id and f.lower().endswith(('.png', '.jpg', '.jpeg', '.webp')):
+            r = by_id[rid]
+            if r.get('image') and not r.get('ai'):
+                print(rid, 'has a real photo, skipped'); continue
+            save_ai(book, r, Image.open(os.path.join(folder, f)))
+
+
 def main():
+    if sys.argv[1:2] == ['--prompts']:
+        return write_prompts()
+    if sys.argv[1:2] == ['--import']:
+        return import_dir(sys.argv[2])
     from PIL import Image
     key = api_key()
-    path = os.path.join(ROOT, 'data.js')
-    src = open(path, encoding='utf-8').read()
-    book = json.loads(src[src.index('{'):src.rindex('}') + 1])
+    book = load_book()
     wanted = sys.argv[1:] or [r['id'] for r in book['recipes'] if not r.get('image') or r.get('ai')]
     for r in book['recipes']:
         if r['id'] not in wanted or r['id'] not in DISH:
@@ -84,14 +145,7 @@ def main():
             raw = generate(DISH[r['id']] + ' ' + STYLE, key)
         except Exception as e:
             print('  failed:', e); continue
-        im = Image.open(io.BytesIO(raw)).convert('RGB')
-        im.thumbnail((1400, 1400))
-        out = f'images/{r["id"]}-ai.jpg'
-        im.save(os.path.join(ROOT, out), quality=82, optimize=True, progressive=True)
-        r['image'], r['ai'] = out, True
-        open(path, 'w', encoding='utf-8').write(
-            '// Generated from the book document. Edit freely.\nwindow.BOOK = ' + json.dumps(book, ensure_ascii=False, indent=1) + ';\n')
-        print('  saved', out)
+        save_ai(book, r, Image.open(io.BytesIO(raw)))
 
 
 if __name__ == '__main__':
