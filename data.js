@@ -129,7 +129,16 @@ window.BOOK = {
   "images/moment-07.jpg",
   "images/moment-08.jpg",
   "images/moment-09.jpg",
-  "images/moment-10.jpg"
+  "images/moment-10.jpg",
+  "images/moment-11.jpg",
+  "images/moment-12.jpg",
+  "images/moment-13.jpg",
+  "images/moment-14.jpg",
+  "images/moment-15.jpg",
+  "images/moment-16.jpg",
+  "images/moment-17.jpg",
+  "images/moment-18.jpg",
+  "images/moment-19.jpg"
  ],
  "categories": [
   {
@@ -1007,7 +1016,10 @@ window.BOOK = {
    ],
    "signoff": "",
    "id": "r23",
-   "image": "images/r23.jpg"
+   "image": "images/r23.jpg",
+   "photos": [
+    "images/r23-2.jpg"
+   ]
   },
   {
    "title": "עוגת גבינה אפויה",
@@ -1115,7 +1127,10 @@ window.BOOK = {
    ],
    "signoff": "",
    "id": "r26",
-   "image": "images/r26.jpg"
+   "image": "images/r26.jpg",
+   "photos": [
+    "images/r26-2.jpg"
+   ]
   },
   {
    "title": "בקלאווה ביתית",
@@ -1512,5 +1527,8 @@ window.BOOK = {
    "id": "r36",
    "image": "images/r36.jpg"
   }
- ]
+ ],
+ "portrait": "images/portrait.jpg",
+ "aboutPhoto": "images/moment-01.jpg",
+ "challahBg": "images/challah-bg.jpg"
 };
