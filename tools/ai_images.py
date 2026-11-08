@@ -17,7 +17,8 @@ STYLE = ("A realistic, unstyled home photo taken with a smartphone in an Israeli
          "Natural daylight from a window, shot from slightly above. The food is served in an everyday dish "
          "on a kitchen counter or a Shabbat table with a white tablecloth. Generous homemade portion, authentic and "
          "a little imperfect, like a photo a family member would send on WhatsApp. "
-         "No people, no hands, no text, no labels, no watermark. Landscape 4:3.")
+         "No people, no hands, no text, no labels, no watermark, no date or time stamp, no numbers anywhere in the image. "
+         "Landscape 4:3.")
 
 DISH = {
     'r01': "Israeli white cabbage salad: very thinly shredded white cabbage dressed with soy sauce, date syrup (silan), oil and lemon, topped with toasted sesame seeds, sunflower seeds and slivered almonds, in a large glass bowl.",

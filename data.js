@@ -190,7 +190,9 @@ window.BOOK = {
     }
    ],
    "signoff": "",
-   "id": "r01"
+   "id": "r01",
+   "image": "images/r01-ai.jpg",
+   "ai": true
   },
   {
    "title": "סלט כרוב גזר וסלרי",
@@ -222,7 +224,9 @@ window.BOOK = {
     }
    ],
    "signoff": "בהצלחה!",
-   "id": "r02"
+   "id": "r02",
+   "image": "images/r02-ai.jpg",
+   "ai": true
   },
   {
    "title": "סלט ברוריה",
@@ -248,7 +252,9 @@ window.BOOK = {
     }
    ],
    "signoff": "",
-   "id": "r03"
+   "id": "r03",
+   "image": "images/r03-ai.jpg",
+   "ai": true
   },
   {
    "title": "סלט פלפלים שרופים",
@@ -391,7 +397,9 @@ window.BOOK = {
     }
    ],
    "signoff": "",
-   "id": "r07"
+   "id": "r07",
+   "image": "images/r07-ai.jpg",
+   "ai": true
   },
   {
    "title": "סלט וולדורף",
@@ -422,7 +430,9 @@ window.BOOK = {
     }
    ],
    "signoff": "",
-   "id": "r08"
+   "id": "r08",
+   "image": "images/r08-ai.jpg",
+   "ai": true
   },
   {
    "title": "דגים לשבת",
@@ -556,7 +566,9 @@ window.BOOK = {
     }
    ],
    "signoff": "",
-   "id": "r12"
+   "id": "r12",
+   "image": "images/r12-ai.jpg",
+   "ai": true
   },
   {
    "title": "קציצות עוף ברוטב תפוחי אדמה/אפונה",
@@ -641,7 +653,9 @@ window.BOOK = {
     }
    ],
    "signoff": "",
-   "id": "r14"
+   "id": "r14",
+   "image": "images/r14-ai.jpg",
+   "ai": true
   },
   {
    "title": "קציצות בשר עם אגוזים",
@@ -682,7 +696,9 @@ window.BOOK = {
     }
    ],
    "signoff": "",
-   "id": "r15"
+   "id": "r15",
+   "image": "images/r15-ai.jpg",
+   "ai": true
   },
   {
    "title": "פלפלים ממולאים",
@@ -742,7 +758,9 @@ window.BOOK = {
     }
    ],
    "signoff": "",
-   "id": "r16"
+   "id": "r16",
+   "image": "images/r16-ai.jpg",
+   "ai": true
   },
   {
    "title": "מרק קובה סלק",
@@ -847,7 +865,9 @@ window.BOOK = {
     }
    ],
    "signoff": "",
-   "id": "r19"
+   "id": "r19",
+   "image": "images/r19-ai.jpg",
+   "ai": true
   },
   {
    "title": "אפונה אדומה",
@@ -882,7 +902,9 @@ window.BOOK = {
     }
    ],
    "signoff": "",
-   "id": "r20"
+   "id": "r20",
+   "image": "images/r20-ai.jpg",
+   "ai": true
   },
   {
    "title": "תפו\"א מוקרם",
@@ -981,7 +1003,9 @@ window.BOOK = {
     }
    ],
    "signoff": "",
-   "id": "r22"
+   "id": "r22",
+   "image": "images/r22-ai.jpg",
+   "ai": true
   },
   {
    "title": "בצק לחלה",
@@ -1289,7 +1313,9 @@ window.BOOK = {
     }
    ],
    "signoff": "",
-   "id": "r30"
+   "id": "r30",
+   "image": "images/r30-ai.jpg",
+   "ai": true
   },
   {
    "title": "עוגת שוקולד פרווה",
@@ -1325,7 +1351,9 @@ window.BOOK = {
     }
    ],
    "signoff": "",
-   "id": "r31"
+   "id": "r31",
+   "image": "images/r31-ai.jpg",
+   "ai": true
   },
   {
    "title": "ספינג'",
@@ -1398,7 +1426,9 @@ window.BOOK = {
     }
    ],
    "signoff": "",
-   "id": "r33"
+   "id": "r33",
+   "image": "images/r33-ai.jpg",
+   "ai": true
   },
   {
    "title": "עוגת גבינה לצאת כיפור",
@@ -1445,7 +1475,9 @@ window.BOOK = {
     }
    ],
    "signoff": "",
-   "id": "r34"
+   "id": "r34",
+   "image": "images/r34-ai.jpg",
+   "ai": true
   },
   {
    "title": "בראוניז פרווה",
@@ -1486,7 +1518,9 @@ window.BOOK = {
     }
    ],
    "signoff": "",
-   "id": "r35"
+   "id": "r35",
+   "image": "images/r35-ai.jpg",
+   "ai": true
   },
   {
    "title": "עוגיות מושלגות",
