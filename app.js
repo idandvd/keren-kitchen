@@ -217,6 +217,8 @@
     }).join('')}</ol>`).join('');
     const totalIng = k;
     const { pics, ai } = photosFor(r);
+    const sender = community.photos.find(p => p.src === pics[0]);
+    const credit = sender && sender.name && sender.name !== 'אנונימי' ? sender.name : (sender ? 'מהמשפחה' : '');
     const rTips = tipsFor(id);
 
     main.innerHTML = `
@@ -236,8 +238,9 @@
         </div>
         <div class="recipe-photos">
           ${pics.length ? `<div class="photo-frame">
-              <button class="recipe-photo" data-i="0" aria-label="הגדלת התמונה"><img src="${pics[0]}" alt="${esc(r.title)}"></button>
+              <button class="recipe-photo" data-i="0" aria-label="הגדלת התמונה"><img class="fill" src="${pics[0]}" alt="" aria-hidden="true"><img class="main" src="${pics[0]}" alt="${esc(r.title)}"></button>
               ${ai ? '<span class="ai-badge">✦ תמונה שנוצרה ב-AI, להמחשה בלבד</span>' : ''}
+              ${credit ? `<span class="ai-badge credit-badge">📷 צילום: ${esc(credit)}</span>` : ''}
             </div>
             ${pics.length > 1 ? `<div class="more-photos">${pics.slice(1).map((p, i) => `<button data-i="${i + 1}" aria-label="תמונה נוספת"><img src="${p}" alt=""></button>`).join('')}</div>` : ''}`
           : `<div class="recipe-art" aria-hidden="true">${svg(ICON[r.category])}</div>`}
