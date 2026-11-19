@@ -463,11 +463,143 @@
     else if (page === 'about') about();
     else if (page === 'challah') challah();
     else if (page === 'moments') moments();
+    else if (page === 'stats') statsPage(arg);
     else notFound();
     document.querySelectorAll('[data-nav]').forEach(a => a.classList.toggle('active',
       a.dataset.nav === (page || 'home') || (page === 'recipe' && a.dataset.nav === 'home')));
     main.classList.remove('enter'); void main.offsetWidth; main.classList.add('enter');
     window.scrollTo(0, onHome ? homeScroll : 0);
+    if (page !== 'stats') track(page, arg);
+  }
+
+  /* ---------- visit counting (GoatCounter) ---------- */
+  const GC = window.GOATCOUNTER || '';
+  const gcQueue = [];
+  if (GC) {
+    window.goatcounter = { no_onload: true };
+    const s = document.createElement('script');
+    s.async = true; s.src = 'https://gc.zgo.at/count.js';
+    s.dataset.goatcounter = `https://${GC}.goatcounter.com/count`;
+    s.onload = () => { while (gcQueue.length) sendCount(gcQueue.shift()); };
+    document.head.appendChild(s);
+  }
+  function sendCount(v) { try { if (!window.goatcounter.filter()) window.goatcounter.count(v); } catch { } }
+  function track(page, arg) {
+    if (!GC) return;
+    const v = { path: '/keren-kitchen/' + [page, arg].filter(Boolean).join('/'), title: document.title };
+    window.goatcounter && window.goatcounter.count ? sendCount(v) : gcQueue.push(v);
+  }
+
+  /* ---------- secret stats page ---------- */
+  // Opens only with a GoatCounter API token saved on this device.
+  // First time: visit #/stats/<token>; it is saved here and removed from the address bar.
+  let statsDays = 30;
+  function statsPage(arg) {
+    if (arg) {
+      try { localStorage.setItem('gc-token', decodeURIComponent(arg)); } catch { }
+      history.replaceState(null, '', '#/stats');
+    }
+    let token = '';
+    try { token = localStorage.getItem('gc-token') || ''; } catch { }
+    if (!GC || !token) return notFound();
+    try { localStorage.setItem('skipgc', 't'); } catch { } // never count this device
+    document.title = 'סטטיסטיקה – המטבח של קרן';
+    main.innerHTML = `<article class="page wide stats-page">
+      <h1>סטטיסטיקה</h1>
+      <p class="lead">רק אצלך. המכשיר הזה לא נספר בביקורים.</p>
+      <div class="chips range" role="group" aria-label="טווח זמן">
+        ${[7, 30, 90].map(d => `<button class="chip" data-days="${d}" aria-pressed="${d === statsDays}">${d} ימים</button>`).join('')}
+      </div>
+      <div id="stats-body"><p class="muted center">טוען…</p></div>
+      <p class="center"><button class="link-btn" id="forget">לשכוח את המפתח במכשיר הזה</button></p>
+    </article>`;
+    main.querySelector('.range').onclick = e => {
+      const b = e.target.closest('[data-days]'); if (!b) return;
+      statsDays = +b.dataset.days; statsPage();
+    };
+    main.querySelector('#forget').onclick = () => {
+      try { localStorage.removeItem('gc-token'); localStorage.removeItem('skipgc'); } catch { }
+      location.hash = '#/';
+    };
+    loadStats(token, statsDays).then(renderStats).catch(err => {
+      const body = document.getElementById('stats-body');
+      if (body) body.innerHTML = `<p class="muted center">לא הצלחתי לטעון את הנתונים (${esc(err.message)}).<br>
+        אם המפתח שגוי, יש ליצור חדש ב-GoatCounter ולפתוח שוב את הקישור הסודי.</p>`;
+    });
+  }
+
+  async function loadStats(token, days) {
+    const end = new Date(); end.setMinutes(0, 0, 0); end.setHours(end.getHours() + 1);
+    const start = new Date(end - days * 864e5);
+    const q = `start=${start.toISOString()}&end=${end.toISOString()}`;
+    const get = path => fetch(`https://${GC}.goatcounter.com/api/v0/${path}`, {
+      headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' }
+    }).then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); });
+    const [hits, refs, sizes, locs] = await Promise.all([
+      get(`stats/hits?${q}&group=day&limit=100`),
+      get(`stats/toprefs?${q}&limit=8`).catch(() => ({ stats: [] })),
+      get(`stats/sizes?${q}&limit=8`).catch(() => ({ stats: [] })),
+      get(`stats/locations?${q}&limit=8`).catch(() => ({ stats: [] }))
+    ]);
+    return { days, start, hits: (hits.hits || []).filter(h => String(h.path).startsWith('/keren-kitchen')), refs, sizes, locs };
+  }
+
+  function renderStats(d) {
+    const body = document.getElementById('stats-body'); if (!body) return;
+    const fmt = n => Number(n || 0).toLocaleString('he-IL');
+    // views per day, oldest → newest
+    const byDay = {};
+    for (let i = 0; i < d.days; i++) { const t = new Date(+d.start + (i + 1) * 864e5); byDay[t.toISOString().slice(0, 10)] = 0; }
+    d.hits.forEach(h => (h.stats || []).forEach(s => { if (s.day in byDay) byDay[s.day] += s.daily || 0; }));
+    const days = Object.entries(byDay);
+    const total = d.hits.reduce((n, h) => n + (h.count || 0), 0);
+    const today = days.length ? days[days.length - 1][1] : 0;
+    const max = Math.max(1, ...days.map(x => x[1]));
+    const pageName = { '': 'דף הבית', about: 'על קרן', challah: 'הפרשת חלה', moments: 'רגעים' };
+    const recipes = [], pages = [];
+    d.hits.forEach(h => {
+      const parts = h.path.replace('/keren-kitchen/', '').split('/');
+      if (parts[0] === 'recipe') { if (byId[parts[1]]) recipes.push({ name: byId[parts[1]].title, href: '#/recipe/' + parts[1], count: h.count }); }
+      else pages.push({ name: pageName[parts[0]] || parts[0], count: h.count });
+    });
+    recipes.sort((a, b) => b.count - a.count); pages.sort((a, b) => b.count - a.count);
+    const sizeName = { phone: 'טלפון', tablet: 'טאבלט', desktop: 'מחשב', desktophd: 'מחשב (מסך גדול)', larger: 'מסך גדול', unknown: 'לא ידוע' };
+    const list = (title, rows, empty) => {
+      const top = Math.max(1, ...rows.map(r => r.count));
+      return `<section class="stat-list"><h2>${title}</h2>${rows.length ? `<ol>${rows.map(r => `<li>
+        <span class="name">${r.href ? `<a href="${r.href}">${esc(r.name)}</a>` : esc(r.name)}</span>
+        <span class="bar"><i style="width:${Math.max(2, r.count / top * 100)}%"></i></span>
+        <span class="num">${fmt(r.count)}</span></li>`).join('')}</ol>` : `<p class="muted">${empty}</p>`}</section>`;
+    };
+    const fromStats = (s, names) => (s.stats || []).map(x => ({ name: (names && names[x.name]) || x.name || 'ישיר / לא ידוע', count: x.count }));
+    const dayLabel = iso => new Date(iso + 'T12:00:00').toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' });
+    body.innerHTML = `
+      <div class="tiles">
+        <div class="tile"><span class="v">${fmt(total)}</span><span class="k">ביקורים ב-${d.days} ימים</span></div>
+        <div class="tile"><span class="v">${fmt(today)}</span><span class="k">היום</span></div>
+        <div class="tile"><span class="v small">${recipes[0] ? esc(recipes[0].name) : '—'}</span><span class="k">המתכון הכי נצפה</span></div>
+      </div>
+      <section class="daychart">
+        <h2>ביקורים לפי יום</h2>
+        <div class="bars" dir="ltr" role="img" aria-label="ביקורים לפי יום">
+          ${days.map(([day, n]) => `<button class="b" style="--h:${n / max * 100}%" data-tip="${dayLabel(day)}: ${fmt(n)}" aria-label="${dayLabel(day)}: ${fmt(n)} ביקורים"><i></i></button>`).join('')}
+        </div>
+        <div class="axis" dir="ltr"><span>${dayLabel(days[0][0])}</span><span>${fmt(max)} בשיא</span><span>${dayLabel(days[days.length - 1][0])}</span></div>
+        <p class="tip-out" aria-live="polite"></p>
+      </section>
+      <div class="lists">
+        ${list('מתכונים', recipes.slice(0, 12), 'עוד אין צפיות במתכונים')}
+        ${list('דפים', pages, 'עוד אין צפיות')}
+        ${list('הגיעו מ...', fromStats(d.refs), 'עוד אין נתונים')}
+        ${list('מכשירים', fromStats(d.sizes, sizeName), 'עוד אין נתונים')}
+        ${list('מדינות', fromStats(d.locs), 'עוד אין נתונים')}
+      </div>
+      <p class="muted center small-note">הנתונים מ-GoatCounter. ביקורים חדשים מופיעים תוך כמה דקות.</p>`;
+    const out = body.querySelector('.tip-out');
+    body.querySelectorAll('.bars .b').forEach(b => {
+      const show = () => { out.textContent = b.dataset.tip; };
+      b.addEventListener('mouseenter', show); b.addEventListener('focus', show); b.addEventListener('click', show);
+    });
   }
   window.addEventListener('hashchange', () => route());
   route();
