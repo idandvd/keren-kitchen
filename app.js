@@ -494,10 +494,16 @@
   // Opens only with a GoatCounter API token saved on this device.
   // First time: visit #/stats/<token>; it is saved here and removed from the address bar.
   let statsDays = 30;
+  const syncStatsLink = () => {
+    let has = false; try { has = !!localStorage.getItem('gc-token'); } catch { }
+    document.getElementById('stats-link').hidden = !(GC && has);
+  };
+  syncStatsLink();
   function statsPage(arg) {
     if (arg) {
       try { localStorage.setItem('gc-token', decodeURIComponent(arg)); } catch { }
       history.replaceState(null, '', '#/stats');
+      syncStatsLink();
     }
     let token = '';
     try { token = localStorage.getItem('gc-token') || ''; } catch { }
@@ -519,6 +525,7 @@
     };
     main.querySelector('#forget').onclick = () => {
       try { localStorage.removeItem('gc-token'); localStorage.removeItem('skipgc'); } catch { }
+      syncStatsLink();
       location.hash = '#/';
     };
     loadStats(token, statsDays).then(renderStats).catch(err => {
