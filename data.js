@@ -125,8 +125,6 @@ window.BOOK = {
   "images/moment-03.jpg",
   "images/moment-04.jpg",
   "images/moment-05.jpg",
-  "images/moment-06.jpg",
-  "images/moment-07.jpg",
   "images/moment-08.jpg",
   "images/moment-09.jpg",
   "images/moment-10.jpg",
