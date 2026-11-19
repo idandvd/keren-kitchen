@@ -532,16 +532,34 @@
     const end = new Date(); end.setMinutes(0, 0, 0); end.setHours(end.getHours() + 1);
     const start = new Date(end - days * 864e5);
     const q = `start=${start.toISOString()}&end=${end.toISOString()}`;
-    const get = path => fetch(`https://${GC}.goatcounter.com/api/v0/${path}`, {
-      headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' }
-    }).then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); });
-    const [hits, refs, sizes, locs] = await Promise.all([
-      get(`stats/hits?${q}&group=day&limit=100`),
-      get(`stats/toprefs?${q}&limit=8`).catch(() => ({ stats: [] })),
-      get(`stats/sizes?${q}&limit=8`).catch(() => ({ stats: [] })),
-      get(`stats/locations?${q}&limit=8`).catch(() => ({ stats: [] }))
-    ]);
-    return { days, start, hits: (hits.hits || []).filter(h => String(h.path).startsWith('/keren-kitchen')), refs, sizes, locs };
+    const cacheKey = 'gc-stats-' + days;
+    try {
+      const c = JSON.parse(sessionStorage.getItem(cacheKey));
+      if (c && Date.now() - c.at < 5 * 60e3) return { ...c.data, start: new Date(c.data.start) };
+    } catch { }
+    const wait = ms => new Promise(r => setTimeout(r, ms));
+    // GoatCounter allows only a few requests per second: send them one by one, and wait and retry on 429.
+    const get = async path => {
+      for (let attempt = 0; ; attempt++) {
+        const r = await fetch(`https://${GC}.goatcounter.com/api/v0/${path}`, {
+          headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' }
+        });
+        if (r.ok) return r.json();
+        if (r.status !== 429 || attempt >= 4) throw new Error('HTTP ' + r.status);
+        const reset = Number(r.headers.get('X-Rate-Limit-Reset'));
+        await wait(Math.min(10, reset > 0 ? reset : 1.5 * (attempt + 1)) * 1000);
+      }
+    };
+    const hits = await get(`stats/hits?${q}&group=day&limit=100`);
+    const extra = {};
+    for (const k of ['toprefs', 'sizes', 'locations']) {
+      await wait(400);
+      extra[k] = await get(`stats/${k}?${q}&limit=8`).catch(() => ({ stats: [] }));
+    }
+    const data = { days, start, hits: (hits.hits || []).filter(h => String(h.path).startsWith('/keren-kitchen')),
+      refs: extra.toprefs, sizes: extra.sizes, locs: extra.locations };
+    try { sessionStorage.setItem(cacheKey, JSON.stringify({ at: Date.now(), data })); } catch { }
+    return data;
   }
 
   function renderStats(d) {
