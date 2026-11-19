@@ -581,7 +581,12 @@
       else pages.push({ name: pageName[parts[0]] || parts[0], count: h.count });
     });
     recipes.sort((a, b) => b.count - a.count); pages.sort((a, b) => b.count - a.count);
-    const sizeName = { phone: 'טלפון', tablet: 'טאבלט', desktop: 'מחשב', desktophd: 'מחשב (מסך גדול)', larger: 'מסך גדול', unknown: 'לא ידוע' };
+    // GoatCounter screen-size buckets: by id, or by its English name
+    const sizeName = {
+      phone: 'טלפון', largephone: 'טלפון גדול', tablet: 'טאבלט', desktop: 'מחשב', desktophd: 'מחשב, מסך גדול', unknown: 'לא ידוע',
+      'Phones': 'טלפון', 'Large phones, small tablets': 'טלפון גדול', 'Tablets and small laptops': 'טאבלט',
+      'Computer monitors': 'מחשב', 'Computer monitors larger than HD': 'מחשב, מסך גדול', '(unknown)': 'לא ידוע'
+    };
     const list = (title, rows, empty) => {
       const top = Math.max(1, ...rows.map(r => r.count));
       return `<section class="stat-list"><h2>${title}</h2>${rows.length ? `<ol>${rows.map(r => `<li>
@@ -589,7 +594,8 @@
         <span class="bar"><i style="width:${Math.max(2, r.count / top * 100)}%"></i></span>
         <span class="num">${fmt(r.count)}</span></li>`).join('')}</ol>` : `<p class="muted">${empty}</p>`}</section>`;
     };
-    const fromStats = (s, names) => (s.stats || []).map(x => ({ name: (names && names[x.name]) || x.name || 'ישיר / לא ידוע', count: x.count }));
+    const fromStats = (s, names, blank) => (s.stats || []).filter(x => x.count > 0).map(x => ({
+      name: (names && (names[x.id] || names[x.name])) || x.name || blank, count: x.count }));
     const dayLabel = iso => new Date(iso + 'T12:00:00').toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' });
     body.innerHTML = `
       <div class="tiles">
@@ -608,9 +614,9 @@
       <div class="lists">
         ${list('מתכונים', recipes.slice(0, 12), 'עוד אין צפיות במתכונים')}
         ${list('דפים', pages, 'עוד אין צפיות')}
-        ${list('הגיעו מ...', fromStats(d.refs), 'עוד אין נתונים')}
-        ${list('מכשירים', fromStats(d.sizes, sizeName), 'עוד אין נתונים')}
-        ${list('מדינות', fromStats(d.locs), 'עוד אין נתונים')}
+        ${list('הגיעו מ...', fromStats(d.refs, null, 'ישיר (למשל קישור מוואטסאפ)'), 'עוד אין נתונים')}
+        ${list('מכשירים', fromStats(d.sizes, sizeName, 'לא ידוע'), 'עוד אין נתונים')}
+        ${list('מדינות', fromStats(d.locs, null, 'לא ידוע'), 'עוד אין נתונים')}
       </div>
       <p class="muted center small-note">הנתונים מ-GoatCounter. ביקורים חדשים מופיעים תוך כמה דקות.</p>`;
     const out = body.querySelector('.tip-out');
